@@ -21,10 +21,10 @@ import java.util.Set;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface Config {
-  public static final String NONE = "--none";
-  public static final String DEFAULT = "--default";
-  public static final String DEFAULT_RES_FOLDER = "res";
-  public static final String DEFAULT_ASSET_FOLDER = "assets";
+  String NONE = "--none";
+  String DEFAULT = "--default";
+  String DEFAULT_RES_FOLDER = "res";
+  String DEFAULT_ASSET_FOLDER = "assets";
 
   /**
    * The Android SDK level to emulate. If not specified, Robolectric defaults to API 16.
@@ -44,6 +44,28 @@ public @interface Config {
    * @return The Android manifest file to load.
    */
   String manifest() default DEFAULT;
+
+  /**
+   * Set the build type type that is being tested.
+   *
+   * @return  The build type (typically BuildConfig.BUILD_TYPE).
+   */
+  String type() default "";
+
+  /**
+   * Set the flavor that is being tested.
+   *
+   * @return  The flavor name (typically BuildConfig.FLAVOR).
+   */
+  String flavor() default "";
+
+  /**
+   * The application ID associated with this variant. This is typically the same as the
+   * package name specified in the manifest, but can be overridden by a flavor.
+   *
+   * @return  The application ID (typically BuildConfig.APPLICATION_ID).
+   */
+  String applicationId() default "";
 
   /**
    * The {@link android.app.Application} class to use in the test, this takes precedence over any application
@@ -101,13 +123,16 @@ public @interface Config {
    */
   String[] libraries() default {};
 
-  public class Implementation implements Config {
+  class Implementation implements Config {
+    private final int reportSdk;
     private final int emulateSdk;
+    private final String type;
+    private final String flavor;
     private final String manifest;
     private final String qualifiers;
     private final String resourceDir;
     private final String assetDir;
-    private final int reportSdk;
+    private final String applicationId;
     private final Class<?>[] shadows;
     private final Class<? extends Application> application;
     private final String[] libraries;
@@ -123,7 +148,10 @@ public @interface Config {
           Integer.parseInt(configProperties.getProperty("reportSdk", "-1")),
           parseClasses(configProperties.getProperty("shadows", "")),
           parseApplication(configProperties.getProperty("application", "android.app.Application")),
-          parsePaths(configProperties.getProperty("libraries", ""))
+          parsePaths(configProperties.getProperty("libraries", "")),
+          configProperties.getProperty("type", ""),
+          configProperties.getProperty("flavor", ""),
+          configProperties.getProperty("applicationId", "")
       );
     }
 
@@ -141,10 +169,10 @@ public @interface Config {
       return classes;
     }
 
+    @SuppressWarnings("unchecked")
     private static <T extends Application> Class<T> parseApplication(String className) {
       try {
-        Class<T> aClass = (Class<T>) Implementation.class.getClassLoader().loadClass(className);
-        return aClass;
+        return (Class<T>) Implementation.class.getClassLoader().loadClass(className);
       } catch (ClassNotFoundException e) {
         throw new RuntimeException(e);
       }
@@ -155,7 +183,7 @@ public @interface Config {
       return pathList.split("[, ]+");
     }
 
-    public Implementation(int emulateSdk, String manifest, String qualifiers, String resourceDir, String assetDir, int reportSdk, Class<?>[] shadows, Class<? extends Application> application, String[] libraries) {
+    public Implementation(int emulateSdk, String manifest, String qualifiers, String resourceDir, String assetDir, int reportSdk, Class<?>[] shadows, Class<? extends Application> application, String[] libraries, String type, String flavor, String applicationId) {
       this.emulateSdk = emulateSdk;
       this.manifest = manifest;
       this.qualifiers = qualifiers;
@@ -165,6 +193,9 @@ public @interface Config {
       this.shadows = shadows;
       this.application = application;
       this.libraries = libraries;
+      this.type = type;
+      this.flavor = flavor;
+      this.applicationId = applicationId;
     }
 
     public Implementation(Config baseConfig, Config overlayConfig) {
@@ -174,15 +205,18 @@ public @interface Config {
       this.resourceDir = pick(baseConfig.resourceDir(), overlayConfig.resourceDir(), Config.DEFAULT_RES_FOLDER);
       this.assetDir = pick(baseConfig.assetDir(), overlayConfig.assetDir(), Config.DEFAULT_ASSET_FOLDER);
       this.reportSdk = pick(baseConfig.reportSdk(), overlayConfig.reportSdk(), -1);
+      this.type = pick(baseConfig.type(), overlayConfig.type(), "");
+      this.flavor = pick(baseConfig.flavor(), overlayConfig.flavor(), "");
+      this.applicationId = pick(baseConfig.applicationId(), overlayConfig.applicationId(), "");
 
-      Set<Class<?>> shadows = new HashSet<Class<?>>();
+      Set<Class<?>> shadows = new HashSet<>();
       shadows.addAll(Arrays.asList(baseConfig.shadows()));
       shadows.addAll(Arrays.asList(overlayConfig.shadows()));
       this.shadows = shadows.toArray(new Class[shadows.size()]);
 
       this.application = pick(baseConfig.application(), overlayConfig.application(), null);
 
-      Set<String> libraries = new HashSet<String>();
+      Set<String> libraries = new HashSet<>();
       libraries.addAll(Arrays.asList(baseConfig.libraries()));
       libraries.addAll(Arrays.asList(overlayConfig.libraries()));
       this.libraries = libraries.toArray(new String[libraries.size()]);
@@ -200,6 +234,21 @@ public @interface Config {
     @Override
     public String manifest() {
       return manifest;
+    }
+
+    @Override
+    public String type() {
+      return type;
+    }
+
+    @Override
+    public String flavor() {
+      return flavor;
+    }
+
+    @Override
+    public String applicationId() {
+      return applicationId;
     }
 
     @Override
