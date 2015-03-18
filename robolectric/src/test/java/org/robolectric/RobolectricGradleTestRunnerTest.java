@@ -14,8 +14,8 @@ public class RobolectricGradleTestRunnerTest {
 
   @Test
   public void getAppManifest_shouldCreateManifest() throws Exception {
-    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(ManifestTest.class);
-    final AndroidManifest manifest = runner.getAppManifest(runner.getConfig(ManifestTest.class.getMethod("withoutAnnotation")));
+    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(ConstantsTest.class);
+    final AndroidManifest manifest = runner.getAppManifest(runner.getConfig(ConstantsTest.class.getMethod("withoutAnnotation")));
 
     assertThat(manifest.getPackageName()).isEqualTo("org.sandwich.foo");
     assertThat(manifest.getResDirectory().getPath()).isEqualTo("build/intermediates/res/flavor1/type1");
@@ -25,8 +25,8 @@ public class RobolectricGradleTestRunnerTest {
 
   @Test
   public void getAppManifest_shouldCreateManifestWithMethodOverrides() throws Exception {
-    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(ManifestTest.class);
-    final AndroidManifest manifest = runner.getAppManifest(runner.getConfig(ManifestTest.class.getMethod("withOverrideAnnotation")));
+    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(ConstantsTest.class);
+    final AndroidManifest manifest = runner.getAppManifest(runner.getConfig(ConstantsTest.class.getMethod("withOverrideAnnotation")));
 
     assertThat(manifest.getPackageName()).isEqualTo("org.sandwich.bar");
     assertThat(manifest.getResDirectory().getPath()).isEqualTo("build/intermediates/res/flavor2/type2");
@@ -35,71 +35,43 @@ public class RobolectricGradleTestRunnerTest {
   }
 
   @Test
-  public void getAppManifest_shouldNotRequireFlavor() throws Exception {
-    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(NoFlavorTest.class);
-    final AndroidManifest manifest = runner.getAppManifest(runner.getConfig(NoFlavorTest.class.getMethod("withoutAnnotation")));
-
-    assertThat(manifest.getPackageName()).isEqualTo("org.sandwich");
-    assertThat(manifest.getResDirectory().getPath()).isEqualTo("build/intermediates/res/type");
-    assertThat(manifest.getAssetsDirectory().getPath()).isEqualTo("build/intermediates/assets/type");
-    assertThat(manifest.getAndroidManifestFile().getPath()).isEqualTo("build/intermediates/manifests/full/type/AndroidManifest.xml");
-  }
-
-  @Test
-  public void getAppManifest_shouldThrowException_whenTypeNotSpecified() throws Exception {
-    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(NoTypeTest.class);
+  public void getAppManifest_shouldThrowException_whenConstantsNotSpecified() throws Exception {
+    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(NoConstantsTest.class);
     exception.expect(RuntimeException.class);
-    runner.getAppManifest(runner.getConfig(NoTypeTest.class.getMethod("withoutAnnotation")));
-  }
-
-  @Test
-  public void getAppManifest_shouldThrowException_whenApplicationIdNotSpecified() throws Exception {
-    final RobolectricGradleTestRunner runner = new RobolectricGradleTestRunner(NoApplicationTest.class);
-    exception.expect(RuntimeException.class);
-    runner.getAppManifest(runner.getConfig(NoApplicationTest.class.getMethod("withoutAnnotation")));
+    runner.getAppManifest(runner.getConfig(NoConstantsTest.class.getMethod("withoutAnnotation")));
   }
 
   @Ignore
-  @Config(applicationId = "org.sandwich.foo", type = "type1", flavor = "flavor1")
-  public static class ManifestTest {
+  @Config(constants = BuildConfig.class)
+  public static class ConstantsTest {
 
     @Test
     public void withoutAnnotation() throws Exception {
     }
 
-    @Test @Config
-    public void withDefaultsAnnotation() throws Exception {
-    }
-
-    @Test @Config(applicationId = "org.sandwich.bar", type = "type2", flavor = "flavor2")
+    @Test @Config(constants = BuildConfigOverride.class)
     public void withOverrideAnnotation() throws Exception {
     }
   }
 
   @Ignore
-  @Config(applicationId = "org.sandwich", type = "type")
-  public static class NoFlavorTest {
+  @Config
+  public static class NoConstantsTest {
 
     @Test
     public void withoutAnnotation() throws Exception {
     }
   }
 
-  @Ignore
-  @Config(applicationId = "org.sandwich")
-  public static class NoTypeTest {
-
-    @Test
-    public void withoutAnnotation() throws Exception {
-    }
+  public static class BuildConfig {
+    public static final String APPLICATION_ID = "org.sandwich.foo";
+    public static final String BUILD_TYPE = "type1";
+    public static final String FLAVOR = "flavor1";
   }
 
-  @Ignore
-  @Config(type = "type")
-  public static class NoApplicationTest {
-
-    @Test
-    public void withoutAnnotation() throws Exception {
-    }
+  public static class BuildConfigOverride {
+    public static final String APPLICATION_ID = "org.sandwich.bar";
+    public static final String BUILD_TYPE = "type2";
+    public static final String FLAVOR = "flavor2";
   }
 }

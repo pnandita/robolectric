@@ -46,26 +46,11 @@ public @interface Config {
   String manifest() default DEFAULT;
 
   /**
-   * Set the build type type that is being tested.
+   * Reference to the BuildConfig class created by the build system.
    *
-   * @return  The build type (typically BuildConfig.BUILD_TYPE).
+   * @return Reference to BuildConfig class.
    */
-  String type() default "";
-
-  /**
-   * Set the flavor that is being tested.
-   *
-   * @return  The flavor name (typically BuildConfig.FLAVOR).
-   */
-  String flavor() default "";
-
-  /**
-   * The application ID associated with this variant. This is typically the same as the
-   * package name specified in the manifest, but can be overridden by a flavor.
-   *
-   * @return  The application ID (typically BuildConfig.APPLICATION_ID).
-   */
-  String applicationId() default "";
+  Class<?> constants() default Void.class;
 
   /**
    * The {@link android.app.Application} class to use in the test, this takes precedence over any application
@@ -126,13 +111,11 @@ public @interface Config {
   class Implementation implements Config {
     private final int reportSdk;
     private final int emulateSdk;
-    private final String type;
-    private final String flavor;
     private final String manifest;
     private final String qualifiers;
     private final String resourceDir;
     private final String assetDir;
-    private final String applicationId;
+    private final Class<?> constants;
     private final Class<?>[] shadows;
     private final Class<? extends Application> application;
     private final String[] libraries;
@@ -149,9 +132,7 @@ public @interface Config {
           parseClasses(configProperties.getProperty("shadows", "")),
           parseApplication(configProperties.getProperty("application", "android.app.Application")),
           parsePaths(configProperties.getProperty("libraries", "")),
-          configProperties.getProperty("type", ""),
-          configProperties.getProperty("flavor", ""),
-          configProperties.getProperty("applicationId", "")
+          null
       );
     }
 
@@ -183,7 +164,7 @@ public @interface Config {
       return pathList.split("[, ]+");
     }
 
-    public Implementation(int emulateSdk, String manifest, String qualifiers, String resourceDir, String assetDir, int reportSdk, Class<?>[] shadows, Class<? extends Application> application, String[] libraries, String type, String flavor, String applicationId) {
+    public Implementation(int emulateSdk, String manifest, String qualifiers, String resourceDir, String assetDir, int reportSdk, Class<?>[] shadows, Class<? extends Application> application, String[] libraries, Class<?> constants) {
       this.emulateSdk = emulateSdk;
       this.manifest = manifest;
       this.qualifiers = qualifiers;
@@ -193,9 +174,7 @@ public @interface Config {
       this.shadows = shadows;
       this.application = application;
       this.libraries = libraries;
-      this.type = type;
-      this.flavor = flavor;
-      this.applicationId = applicationId;
+      this.constants = constants;
     }
 
     public Implementation(Config baseConfig, Config overlayConfig) {
@@ -205,9 +184,7 @@ public @interface Config {
       this.resourceDir = pick(baseConfig.resourceDir(), overlayConfig.resourceDir(), Config.DEFAULT_RES_FOLDER);
       this.assetDir = pick(baseConfig.assetDir(), overlayConfig.assetDir(), Config.DEFAULT_ASSET_FOLDER);
       this.reportSdk = pick(baseConfig.reportSdk(), overlayConfig.reportSdk(), -1);
-      this.type = pick(baseConfig.type(), overlayConfig.type(), "");
-      this.flavor = pick(baseConfig.flavor(), overlayConfig.flavor(), "");
-      this.applicationId = pick(baseConfig.applicationId(), overlayConfig.applicationId(), "");
+      this.constants = pick(baseConfig.constants(), overlayConfig.constants(), null);
 
       Set<Class<?>> shadows = new HashSet<>();
       shadows.addAll(Arrays.asList(baseConfig.shadows()));
@@ -223,7 +200,7 @@ public @interface Config {
     }
 
     private <T> T pick(T baseValue, T overlayValue, T nullValue) {
-      return overlayValue.equals(nullValue) ? baseValue : overlayValue;
+      return overlayValue != null ? (overlayValue.equals(nullValue) ? baseValue : overlayValue) : null;
     }
 
     @Override
@@ -237,18 +214,8 @@ public @interface Config {
     }
 
     @Override
-    public String type() {
-      return type;
-    }
-
-    @Override
-    public String flavor() {
-      return flavor;
-    }
-
-    @Override
-    public String applicationId() {
-      return applicationId;
+    public Class<?> constants() {
+      return constants;
     }
 
     @Override

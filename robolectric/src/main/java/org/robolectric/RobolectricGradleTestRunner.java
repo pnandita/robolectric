@@ -5,14 +5,12 @@ import org.robolectric.annotation.Config;
 import org.robolectric.manifest.AndroidManifest;
 import org.junit.runners.model.InitializationError;
 import org.robolectric.util.Logger;
+import org.robolectric.util.ReflectionHelpers;
 
 /**
  * Test runner customized for running unit tests either through the Gradle CLI or
  * Android Studio. The runner uses the build type and build flavor to compute the
  * resource, asset, and AndroidManifest paths.
- *
- * Using this test runner requires that the applicationId, type, and flavor be set
- * on the @Config annotation.
  */
 public class RobolectricGradleTestRunner extends RobolectricTestRunner {
   private static final String BUILD_OUTPUT = "build/intermediates";
@@ -23,21 +21,15 @@ public class RobolectricGradleTestRunner extends RobolectricTestRunner {
 
   @Override
   protected AndroidManifest getAppManifest(Config config) {
-    final String type = config.type();
-    final String flavor = config.flavor();
-    final String applicationId = config.applicationId();
-
-    if (type == null || type.isEmpty()) {
-      Logger.error("No type specified in @Config annotation");
+    if (config.constants() == Void.class) {
+      Logger.error("Field 'constants' not specified in @Config annotation");
       Logger.error("This is required when using RobolectricGradleTestRunner!");
-      throw new RuntimeException("Unknown type specified in @Config annotation!");
+      throw new RuntimeException("No 'constants' field in @Config annotation!");
     }
 
-    if (applicationId == null || applicationId.isEmpty()) {
-      Logger.error("No applicationId specified in @Config annotation");
-      Logger.error("This is required when using RobolectricGradleTestRunner!");
-      throw new RuntimeException("Unknown applicationId specified in @Config annotation.");
-    }
+    final String type = getType(config);
+    final String flavor = getFlavor(config);
+    final String applicationId = getApplicationId(config);
 
     final FileFsFile res = FileFsFile.from(BUILD_OUTPUT, "res", flavor, type);
     final FileFsFile assets = FileFsFile.from(BUILD_OUTPUT, "assets", flavor, type);
@@ -46,7 +38,31 @@ public class RobolectricGradleTestRunner extends RobolectricTestRunner {
     Logger.debug("Robolectric assets directory: " + assets.getPath());
     Logger.debug("   Robolectric res directory: " + res.getPath());
     Logger.debug("   Robolectric manifest path: " + manifest.getPath());
-    Logger.debug("    Robolectric package name: " + config.applicationId());
+    Logger.debug("    Robolectric package name: " + applicationId);
     return new AndroidManifest(manifest, res, assets, applicationId);
+  }
+
+  private String getType(Config config) {
+    try {
+      return ReflectionHelpers.getStaticField(config.constants(), "BUILD_TYPE");
+    } catch (Throwable e) {
+      return null;
+    }
+  }
+
+  private String getFlavor(Config config) {
+    try {
+      return ReflectionHelpers.getStaticField(config.constants(), "FLAVOR");
+    } catch (Throwable e) {
+      return null;
+    }
+  }
+
+  private String getApplicationId(Config config) {
+    try {
+      return ReflectionHelpers.getStaticField(config.constants(), "APPLICATION_ID");
+    } catch (Throwable e) {
+      return null;
+    }
   }
 }
